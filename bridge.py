@@ -28,7 +28,7 @@ def echo(msg, where):
     where = info | docsclient | echo
     """
     if not msg:
-        return
+        return ''
     msg = msg.rstrip()
     if where and where.startswith('info'):
         return where + ' ' + single_quoted(join(msg.split('\n')[0:20], '\n'))
@@ -146,6 +146,7 @@ def start_ghci(ghci_cmd, log=lambda x: print('[GHCI]:', x)):
     run(":set -fdefer-typed-holes")
     run(":set -fdefer-type-errors")
     run(":set -Wall")
+    run(":set -Wno-missing-signatures")
     run(":set -Wwarn=missing-home-modules")
     run(":set +c")
     # log(p.run_command(":set -fno-diagnostics-show-caret"))
@@ -181,15 +182,16 @@ def edit(filename):
 
 
 def pipe(session, msg, client=None):
-    if client:
-        name = tempfile.mktemp()
-        with open(name, 'wb') as tmp:
-            print('[SEND]:', msg)
-            tmp.write(encode(msg))
-        msg = 'eval -client {} "%sh`cat {}; rm {}`"'.format(client, name, name)
-    p = Popen(['kak', '-p', session], stdin=PIPE)
-    print('[SEND]:', msg)
-    p.communicate(encode(msg))
+    if msg.strip():
+        if client:
+            name = tempfile.mktemp()
+            with open(name, 'wb') as tmp:
+                print('[SEND]:', msg)
+                tmp.write(encode(msg))
+            msg = 'eval -client {} "%sh`cat {}; rm {}`"'.format(client, name, name)
+        p = Popen(['kak', '-p', session], stdin=PIPE)
+        print('[SEND]:', msg)
+        p.communicate(encode(msg))
 
 
 def main():
@@ -220,7 +222,7 @@ def main():
         res = ghci.load(bufname)
         self.warnings = nub([w for w in res if 'filename' in w])
         for w in self.warnings:
-            if w.line > buf_line_count:
+            if int(w.line) > int(buf_line_count):
                 w.line = buf_line_count
         self.warnings.sort(key=lambda m: (m.filename, m.line, m.col))
         flags = [str(timestamp), '1|  ']
@@ -230,7 +232,7 @@ def main():
                 return 'yellow'
             else:
                 return 'red'
-        flags += [str(m.line) + '|{' + col(w) + u'}\u2022 ' for m in self.warnings if m.filename == bufname]
+        flags += [str(m.line) + '|{' + col(m) + u'}\u2022 ' for m in self.warnings if m.filename == bufname]
         flag_value = single_quoted(':'.join(flags))
         msgs = [
             'try %{decl line-specs ghci_flags}',
@@ -276,7 +278,6 @@ def main():
                 wmsgs += [w.msg]
 
         msgs += [echo('\n\n'.join(wmsgs), where or cursor_placement)]
-
         msg = '\n'.join(msgs)
         pipe(session, msg, client)
         return
