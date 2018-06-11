@@ -308,13 +308,13 @@ def main():
         pipe(session, msg, client)
 
     @cmd
-    def info(session, client, timestamp, bufname, buf_line_count, text='$kak_selection', where='$1'):
+    def info(session, client, timestamp, bufname, buf_line_count, where='$1', text='$2'):
         load(session, client, timestamp, bufname, buf_line_count)
         msg = echo(ghci.info(text), where)
         pipe(session, msg, client)
 
     @cmd
-    def type(session, client, timestamp, bufname, buf_line_count, text='$kak_selection', where='$1'):
+    def type(session, client, timestamp, bufname, buf_line_count, where='$1', text='$2'):
         load(session, client, timestamp, bufname, buf_line_count)
         msg = echo(ghci.type(text), where)
         pipe(session, msg, client)
@@ -326,11 +326,11 @@ def main():
     pipe(session, '''def -allow-override ghci-bindings-for-buffer %{
         map buffer user . ': ghci-definition<ret>'
         map buffer user u ': ghci-uses<ret>'
-        map buffer user t ': ghci-diagnostic next<ret>'
-        map buffer user n ': ghci-diagnostic prev<ret>'
-        map buffer user e ': ghci-diagnostic<ret>'
+        map buffer user t ': w;ghci-diagnostic next<ret>'
+        map buffer user n ': w;ghci-diagnostic prev<ret>'
+        map buffer user e ': w;ghci-diagnostic<ret>'
         map buffer user i ': ghci-typeAt info<ret>'
-        map buffer user h ': ghci-info info<ret>'
+        map buffer user h ': ghci-info info %val{selection}<ret>'
     }
     def -allow-override ghci-hook-bindings-for-buffer %{
         hook -group ghci global BufSetOption filetype=haskell ghci-bindings-for-buffer
