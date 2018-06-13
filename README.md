@@ -10,6 +10,23 @@ Run `python bridge.py SESSION DIR GHCI_CMD`
 
 This connects with the kak session using a command for `ghci` (for example `cabal repl`) starting in the directory `DIR`.
 When running you see some debug output and inside kakoune you get a bunch of commands prefixed with `ghci-`.
+It also populates the `user` keymap with some bindings.
+
+
+
+    def start-ghci-bridge -params 0..1 -docstring '
+        start-ghci-bridge [GHCI_CMD]
+
+        Starts the bridge.py using the GHCI_CMD, default "make ghci"
+    ' %{
+        %sh{
+            dir=$PWD
+            cd ~/code/kakoune-ghci-bridge
+            (
+                python bridge.py "$kak_session" "$dir" "${1:-make ghci}"
+            ) > /dev/null 2>&1 < /dev/null &
+        }
+    }
 
 ## todo
 

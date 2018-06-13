@@ -10,6 +10,7 @@ import six
 from subprocess import Popen, PIPE
 import traceback
 from pprint import pformat, pprint
+from collections import defaultdict
 
 
 def nub(xs):
@@ -215,10 +216,16 @@ def main():
         commands.append(f)
         return f
 
-    self = dotdict(warnings=[])
+    self = dotdict(warnings=[], timestamps=defaultdict(lambda: 0))
 
     @cmd
     def load(session, client, timestamp, bufname, buf_line_count):
+        if timestamp == self.timestamps[bufname]:
+            print('[LOAD]:', timestamp, self.timestamps)
+            return
+        pipe(session, 'echo loading...', client)
+        self.timestamps[bufname] = timestamp
+
         res = ghci.load(bufname)
         self.warnings = nub([w for w in res if 'filename' in w])
         for w in self.warnings:
@@ -228,13 +235,17 @@ def main():
         flags = [str(timestamp), '1|  ']
 
         def col(w):
-            if w.msg.startswith('warning'):
+            line = w.msg.split('\n')[0]
+            if 'warning' in line and 'deferred' not in line:
                 return 'yellow'
             else:
                 return 'red'
         flags += [str(m.line) + '|{' + col(m) + u'}\u2022 ' for m in self.warnings if m.filename == bufname]
         flag_value = single_quoted(':'.join(flags))
+        other = nub([w.filename for w in self.warnings if w.filename != bufname])
+        other = '(warnings in ' + ', '.join(other) + ')' if other else ''
         msgs = [
+            'echo ' + other,
             'try %{decl line-specs ghci_flags}',
             'set buffer=' + bufname + ' ghci_flags ' + flag_value,
             'try %{addhl window/ flag_lines default ghci_flags}',
@@ -263,9 +274,9 @@ def main():
             if dest is None and len(ws) > 0:
                 dest = ws[0]
             if dest:
-                if bufname != w.filename:
-                    msgs += ['edit ' + bufname]
-                if dest.line != line:
+                if bufname != dest.filename:
+                    msgs += ['edit ' + dest.filename + ' ' + dest.line + ' ' + dest.col]
+                elif dest.line != line:
                     msgs += [select(dotdict(line1=dest.line, col1=dest.col, line2=dest.line, col2=dest.col))]
                 line = dest.line
 
@@ -323,18 +334,14 @@ def main():
         args = (':' + ':'.join(f.__defaults__)) if f.__defaults__ else ''
         name = f.__name__
         pipe(session, 'def -allow-override -params .. ghci-{name} %(%sh(echo {name}:$kak_session:$kak_client:$kak_timestamp:$kak_bufname:$kak_buf_line_count{args} > {fifo}))'.format(**locals()))
-    pipe(session, '''def -allow-override ghci-bindings-for-buffer %{
-        map buffer user . ': ghci-definition<ret>'
-        map buffer user u ': ghci-uses<ret>'
-        map buffer user t ': w;ghci-diagnostic next<ret>'
-        map buffer user n ': w;ghci-diagnostic prev<ret>'
-        map buffer user e ': w;ghci-diagnostic<ret>'
-        map buffer user i ': ghci-typeAt info<ret>'
-        map buffer user h ': ghci-info info %val{selection}<ret>'
-    }
-    def -allow-override ghci-hook-bindings-for-buffer %{
-        hook -group ghci global BufSetOption filetype=haskell ghci-bindings-for-buffer
-    }
+    pipe(session, '''
+        map global user . ': ghci-definition<ret>'
+        map global user u ': ghci-uses<ret>'
+        map global user t ': w;ghci-diagnostic next<ret>'
+        map global user n ': w;ghci-diagnostic prev<ret>'
+        map global user e ': w;ghci-diagnostic<ret>'
+        map global user i ': ghci-typeAt info<ret>'
+        map global user h ': ghci-info info %val{selection}<ret>'
     ''')
     command_dict = dict(((f.__name__, f) for f in commands))
     while True:
