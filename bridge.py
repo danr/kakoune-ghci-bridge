@@ -136,7 +136,7 @@ def chunkwise(p):
 
 def start_ghci(ghci_cmd, log=lambda x: print('[GHCI]:', x)):
     p = pexpect.replwrap.REPLWrapper(ghci_cmd, ">", ":set prompt [PEXPECT_PROMPT>")
-    p.run_command(":set prompt2 [PEXPECT_PROMPT+")
+    p.run_command(":set prompt-cont [PEXPECT_PROMPT+")
 
     def run(cmd):
         log('[SEND]: ' + cmd)
