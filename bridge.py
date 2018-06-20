@@ -333,7 +333,7 @@ def main():
     for f in commands:
         args = (':' + ':'.join(f.__defaults__)) if f.__defaults__ else ''
         name = f.__name__
-        pipe(session, 'def -allow-override -params .. ghci-{name} %(%sh(echo {name}:$kak_session:$kak_client:$kak_timestamp:$kak_bufname:$kak_buf_line_count{args} > {fifo}))'.format(**locals()))
+        pipe(session, 'def -override -params .. ghci-{name} %(%sh(echo {name}:$kak_session:$kak_client:$kak_timestamp:$kak_bufname:$kak_buf_line_count{args} > {fifo}))'.format(**locals()))
     pipe(session, '''
         map global user . ': ghci-definition<ret>'
         map global user u ': ghci-uses<ret>'
